@@ -1,11 +1,18 @@
+<div align="center">
+
 # The Guardian — Auditoria de Email
 
-![Status](https://img.shields.io/badge/Status-Active-brightgreen)
-![License](https://img.shields.io/badge/License-MIT-blue)
-![Author](https://img.shields.io/badge/Author-Casco%20Digital-orange)
+**Public SPF, DMARC, and MX risk audit for email security posture.**
 
+![Status](https://img.shields.io/badge/Status-Active-16A34A?style=flat-square)
+![License](https://img.shields.io/badge/License-MIT-2563EB?style=flat-square)
+![Casco Digital](https://img.shields.io/badge/Casco-Digital-111827?style=flat-square)
 ![Cloudflare](https://img.shields.io/badge/Cloudflare-Workers-F38020?style=flat-square&logo=cloudflare&logoColor=white)
 ![HTML5](https://img.shields.io/badge/HTML5-CSS3-E34F26?style=flat-square&logo=html5&logoColor=white)
+
+</div>
+
+---
 
 Ferramenta publica de auditoria de seguranca de email. Analisa registros **SPF**, **DMARC** e **MX** de qualquer dominio e gera um Score de Risco (0-100) em segundos, identificando vulnerabilidades de spoofing.
 
