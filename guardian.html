@@ -3,10 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="The Guardian - Auditoria de Email gratuita. Verifique SPF, DMARC e MX do seu domínio e descubra o Score de Risco em segundos. Casco Digital.">
+    <meta name="description" content="The Guardian - Auditoria de Email gratuita. Verifique SPF, DMARC e MX do seu domínio e descubra o Nível de Proteção em segundos. Casco Digital.">
     <meta property="og:title" content="The Guardian | Auditoria de Email - Casco Digital">
-    <meta property="og:description" content="Audite SPF, DMARC e MX do seu domínio. Score de risco 0-100 gratuito.">
-    <meta property="og:url" content="https://cascodigital.com.br/guardian">
+    <meta property="og:description" content="Audite SPF, DMARC e MX do seu domínio. Nível de proteção 0-100 gratuito, direto no navegador.">
+    <meta property="og:url" content="https://cascodigital.com.br/diagnostico">
+    <link rel="canonical" href="https://cascodigital.com.br/diagnostico">
     <title>The Guardian | Auditoria de Email - Casco Digital</title>
 
     <style>
@@ -533,7 +534,7 @@
                 <li><a href="/">Home</a></li>
                 <li><a href="/#pillars">Pilares</a></li>
                 <li><a href="/#services">Serviços</a></li>
-                <li><a href="/guardian" class="active">The Guardian</a></li>
+                <li><a href="/diagnostico" class="active">Diagnóstico</a></li>
                 <li><a href="/#contact">Contato</a></li>
             </ul>
         </nav>
@@ -543,7 +544,7 @@
     <section class="guardian-hero">
         <div class="hero-badge">🛡️ Ferramenta Gratuita</div>
         <h1>The <span>Guardian</span></h1>
-        <p>Audite SPF, DMARC e MX do seu domínio em segundos. Descubra seu Score de Risco e saiba se cibercriminosos podem enviar emails falsos no nome da sua empresa.</p>
+        <p>Audite SPF, DMARC e MX do seu domínio em segundos. Descubra seu Nível de Proteção e saiba se cibercriminosos podem enviar emails falsos no nome da sua empresa.</p>
 
         <div class="audit-form-container">
             <form class="audit-form" id="auditForm">
@@ -551,14 +552,14 @@
                     type="text"
                     class="audit-input"
                     id="domainInput"
-                    placeholder="seupdominio.com.br"
+                    placeholder="seudominio.com.br"
                     autocomplete="off"
                     autocapitalize="none"
                     spellcheck="false"
                 />
                 <button type="submit" class="audit-btn" id="auditBtn">Auditar Agora</button>
             </form>
-            <p class="form-hint">Não precisa de cadastro. 100% gratuito.</p>
+            <p class="form-hint">Não precisa de cadastro. 100% gratuito. A consulta roda no seu navegador.</p>
             <div class="error-box" id="errorBox"></div>
         </div>
     </section>
@@ -575,7 +576,7 @@
         <!-- Score Card -->
         <div class="score-card" id="scoreCard">
             <div class="score-domain" id="scoreDomain"></div>
-            <div class="score-label">Score de Risco</div>
+            <div class="score-label">Nível de Proteção de Email</div>
             <div class="score-number" id="scoreNumber">0</div>
             <div class="score-bar-wrapper">
                 <div class="score-bar" id="scoreBar" style="width: 0%"></div>
@@ -645,7 +646,7 @@
             <div class="how-card">
                 <div class="how-icon">🛡️</div>
                 <h4>DMARC</h4>
-                <p>Instrui provedores a rejeitar ou quarentenar emails que falhem nas verificações. O escudo final contra spoofing.</p>
+                <p>Instrui provedores a rejeitar emails que falhem nas verificações. O escudo final contra spoofing e phishing.</p>
             </div>
             <div class="how-card">
                 <div class="how-icon">📬</div>
@@ -655,7 +656,7 @@
             <div class="how-card">
                 <div class="how-icon">📊</div>
                 <h4>Score 0–100</h4>
-                <p>Calculado com base nas falhas encontradas. Quanto maior o score, maior o risco de fraude e prejuízo ao negócio.</p>
+                <p>Parte de 100 e desconta pontos por falha encontrada. Quanto maior o score, melhor a proteção contra fraude de email.</p>
             </div>
         </div>
     </section>
@@ -676,17 +677,26 @@
             document.getElementById('navMenu').classList.toggle('active');
         });
 
+        // ------------------------------------------------------------
+        // Email audit, fully client-side: the browser queries Cloudflare
+        // DNS-over-HTTPS (JSON API) directly, so no backend is needed.
+        // Score = protection level: starts at 100 and loses points per
+        // finding (higher is better). User-facing strings stay pt-BR.
+        // ------------------------------------------------------------
+        const DOH_ENDPOINT = 'https://cloudflare-dns.com/dns-query';
+
         const SCORE_COLORS = {
-            low:      { color: '#00FF00', glow: 'rgba(0,255,0,0.4)',    verdict: 'Baixo Risco — Boa configuração!' },
-            medium:   { color: '#FFC107', glow: 'rgba(255,193,7,0.4)',  verdict: 'Risco Moderado — Atenção necessária' },
-            high:     { color: '#FF9800', glow: 'rgba(255,152,0,0.4)',  verdict: 'Alto Risco — Ação recomendada' },
-            critical: { color: '#FF5252', glow: 'rgba(255,82,82,0.4)',  verdict: 'Risco Crítico — Domínio vulnerável!' },
+            low:      { color: '#00FF00', glow: 'rgba(0,255,0,0.4)',    verdict: 'Excelente — Domínio Protegido!' },
+            medium:   { color: '#FFC107', glow: 'rgba(255,193,7,0.4)',  verdict: 'Segurança Moderada — Existem brechas' },
+            high:     { color: '#FF9800', glow: 'rgba(255,152,0,0.4)',  verdict: 'Segurança Baixa — Ação recomendada' },
+            critical: { color: '#FF5252', glow: 'rgba(255,82,82,0.4)',  verdict: 'Risco Crítico — Vulnerável a ataques!' },
         };
 
+        // Risk level from the protection score (90+ low risk ... <50 critical).
         function scoreLevel(s) {
-            if (s <= 20) return 'low';
-            if (s <= 50) return 'medium';
-            if (s <= 75) return 'high';
+            if (s >= 90) return 'low';
+            if (s >= 70) return 'medium';
+            if (s >= 50) return 'high';
             return 'critical';
         }
 
@@ -714,10 +724,75 @@
         }
 
         function impactText(score) {
-            if (score <= 20) return 'Seu domínio está bem protegido contra fraudes de email. Mantenha as configurações atualizadas e monitore relatórios DMARC regularmente.';
-            if (score <= 50) return 'Existem brechas que podem ser exploradas. Concorrentes ou criminosos podem tentar enviar emails no nome da sua empresa para clientes, fornecedores ou colaboradores. Risco de fraude financeira moderado.';
-            if (score <= 75) return '⚠️ Seu domínio está vulnerável. Criminosos podem enviar boletos falsos, solicitações de transferência e phishing corporativo com o endereço da sua empresa. Clientes podem ser enganados com emails aparentemente legítimos. Prejuízo financeiro e dano à reputação são riscos reais.';
-            return '🚨 CRÍTICO: Seu domínio não tem nenhuma proteção contra spoofing de email. Qualquer pessoa no mundo pode enviar emails como se fosse você agora mesmo — sem nenhum bloqueio técnico. Isso é usado em golpes financeiros, phishing direcionado e BEC (Business Email Compromise), os ataques que mais causam prejuízo a empresas brasileiras. Ação imediata necessária.';
+            if (score >= 90) return 'Excelente. A infraestrutura de e-mail da sua empresa possui as barreiras necessárias contra falsidade ideológica (spoofing).';
+            if (score >= 70) return 'Existem brechas que podem ser exploradas. Concorrentes ou criminosos podem tentar enviar emails no nome da sua empresa para clientes e fornecedores.';
+            if (score >= 50) return '⚠️ Seu domínio está vulnerável. Criminosos podem enviar boletos falsos, solicitações de transferência e phishing corporativo com o endereço da sua empresa.';
+            return '🚨 CRÍTICO: Falta de conformidade grave. Criminosos podem enviar e-mails falsos (boletos, pedidos) em nome da sua empresa sem nenhum bloqueio. Ação imediata requerida.';
+        }
+
+        // Accept "https://Example.com/path" or "user@example.com" and reduce it to "example.com".
+        function normalizeDomain(input) {
+            let d = String(input).trim().toLowerCase();
+            d = d.replace(/^[a-z]+:\/\//, '');
+            d = d.split(/[\/?#]/)[0];
+            d = d.includes('@') ? d.split('@').pop() : d;
+            return d.replace(/:\d+$/, '').replace(/\.$/, '');
+        }
+
+        // One DoH lookup; throws on HTTP failure so the whole audit reports an error.
+        async function dnsQuery(name, type) {
+            const url = `${DOH_ENDPOINT}?name=${encodeURIComponent(name)}&type=${encodeURIComponent(type)}`;
+            const res = await fetch(url, { headers: { 'Accept': 'application/dns-json' } });
+            if (!res.ok) throw new Error(`DNS ${type}/${name} failed: ${res.status}`);
+            return res.json();
+        }
+
+        // DoH returns TXT data quoted, and records longer than 255 bytes come
+        // split into several quoted strings ("v=spf1 ..." "...-all"). Strip the
+        // outer quotes and join the chunks with no separator (RFC 7208 3.3).
+        function parseTxtRecords(answer) {
+            if (!answer) return [];
+            return answer.map(r => r.data.replace(/^"|"$/g, '').replace(/"\s*"/g, ''));
+        }
+
+        function analyzeSpf(data) {
+            const records = parseTxtRecords(data.Answer).filter(r => r.startsWith('v=spf1'));
+            if (!records.length) return { label: 'Ausente', status: 'missing', value: null };
+            const val = records[0];
+            if (val.includes('+all')) return { label: 'Perigoso', status: 'dangerous', value: val };
+            if (val.includes('?all')) return { label: 'Fraco',    status: 'weak',      value: val };
+            if (val.includes('~all')) return { label: 'Softfail', status: 'softfail',  value: val };
+            if (val.includes('-all')) return { label: 'OK',       status: 'strict',    value: val };
+            return { label: 'Incompleto', status: 'incomplete', value: val };
+        }
+
+        function analyzeDmarc(data) {
+            const records = parseTxtRecords(data.Answer).filter(r => /^v=DMARC1/i.test(r));
+            if (!records.length) return { label: 'Ausente', status: 'missing', value: null };
+            const val = records[0];
+            const m = val.match(/\bp=(\w+)/i);
+            if (!m) return { label: 'Incompleto', status: 'incomplete', value: val };
+            const p = m[1].toLowerCase();
+            if (p === 'reject')     return { label: 'Strict',   status: 'strict',      value: val };
+            if (p === 'quarantine') return { label: 'Moderado', status: 'moderate',    value: val };
+            if (p === 'none')       return { label: 'Monitor',  status: 'monitoring',  value: val };
+            return { label: 'Incompleto', status: 'incomplete', value: val };
+        }
+
+        function analyzeMx(data) {
+            if (!data.Answer || !data.Answer.length) return { exists: false, records: [] };
+            return { exists: true, records: data.Answer.map(r => r.data) };
+        }
+
+        // Penalty table (points subtracted from 100). Unknown statuses cost 20.
+        function calcScore(spf, dmarc, mx) {
+            const spfPenalty   = { missing: 40, dangerous: 50, weak: 30, softfail: 15, incomplete: 20, strict: 0 };
+            const dmarcPenalty = { missing: 35, monitoring: 15, moderate: 5, incomplete: 20, strict: 0 };
+            let score = 100;
+            score -= (spfPenalty[spf.status] ?? 20);
+            score -= (dmarcPenalty[dmarc.status] ?? 20);
+            if (!mx.exists) score -= 15;
+            return Math.max(0, Math.min(100, score));
         }
 
         async function runAudit(domain) {
@@ -733,21 +808,23 @@
             btn.textContent = 'Auditando...';
 
             try {
-                const res = await fetch(`/api/audit?domain=${encodeURIComponent(domain)}`);
-                const data = await res.json();
+                // The three lookups are independent, so run them in parallel.
+                const [txtData, dmarcData, mxData] = await Promise.all([
+                    dnsQuery(domain, 'TXT'),
+                    dnsQuery('_dmarc.' + domain, 'TXT'),
+                    dnsQuery(domain, 'MX'),
+                ]);
+
+                const spf = analyzeSpf(txtData);
+                const dmarc = analyzeDmarc(dmarcData);
+                const mx = analyzeMx(mxData);
+                const score = calcScore(spf, dmarc, mx);
 
                 loading.style.display = 'none';
-
-                if (!data.ok) {
-                    errorBox.textContent = data.error || 'Erro ao auditar domínio.';
-                    errorBox.style.display = 'block';
-                    return;
-                }
-
-                renderResults(data);
+                renderResults({ ok: true, domain, score, spf, dmarc, mx });
             } catch (e) {
                 loading.style.display = 'none';
-                errorBox.textContent = 'Falha na conexão. Tente novamente.';
+                errorBox.textContent = 'Falha na consulta DNS. Verifique o domínio e tente novamente.';
                 errorBox.style.display = 'block';
             } finally {
                 btn.disabled = false;
@@ -813,7 +890,7 @@
 
         document.getElementById('auditForm').addEventListener('submit', (e) => {
             e.preventDefault();
-            const domain = document.getElementById('domainInput').value.trim();
+            const domain = normalizeDomain(document.getElementById('domainInput').value);
             if (!domain) return;
             runAudit(domain);
         });

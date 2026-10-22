@@ -1,112 +1,110 @@
 # the-guardian
 
-A public email-security audit page that scores a domain's SPF, DMARC and MX posture, aimed at small-business owners checking their spoofing exposure.
+A public email-security audit page that scores a domain's SPF, DMARC and MX posture in the browser, aimed at small-business owners checking their spoofing exposure.
 
 ![License](https://img.shields.io/badge/license-MIT-blue) ![JavaScript](https://img.shields.io/badge/JavaScript-ES2020-yellow) ![Status](https://img.shields.io/badge/status-active-green)
 
-**Live:** [cascodigital.com.br/guardian](https://cascodigital.com.br/guardian)
+**Live:** [cascodigital.com.br/diagnostico](https://cascodigital.com.br/diagnostico)
 
 ## Overview
 
 Most small companies have no idea whether someone can send email as their domain. Existing checkers (MXToolbox
 and similar) return raw records and protocol jargon that a non-technical owner cannot act on. The Guardian
-queries the domain's DNS, turns SPF, DMARC and MX findings into a single 0-100 risk score, and explains the
-business impact and the fix in plain language. The page is in Brazilian Portuguese because it targets
-Brazilian visitors.
+queries the domain's DNS straight from the visitor's browser, turns SPF, DMARC and MX findings into a single
+0-100 protection score, and explains the business impact and the fix in plain language. The page is in
+Brazilian Portuguese because it targets Brazilian visitors.
 
 ## Features
 
-- Looks up SPF (`TXT`), DMARC (`_dmarc` `TXT`) and `MX` records through Cloudflare DNS-over-HTTPS.
+- Looks up SPF (`TXT`), DMARC (`_dmarc` `TXT`) and `MX` records through Cloudflare DNS-over-HTTPS, from the browser.
 - Classifies SPF by its `all` qualifier (`+all`, `?all`, `~all`, `-all`, missing or incomplete).
 - Classifies DMARC by policy (`p=reject`, `p=quarantine`, `p=none`, missing or incomplete).
-- Computes a weighted risk score and maps it to four levels (low, moderate, high, critical).
+- Computes a 0-100 protection score (higher is safer) and maps it to four risk levels.
 - Shows the raw record, a per-record recommendation and a business-impact summary.
-- Normalizes input such as `https://example.com/path` to `example.com`.
-- Runs without API keys, databases or build tooling.
+- Reassembles TXT records that DNS returns split into several quoted strings.
+- Normalizes input such as `https://example.com/path` or `user@example.com` to `example.com`.
+- Runs as one static HTML file: no backend, API keys, database or build step.
 
 ## How it works
 
 ```text
-Browser (guardian.html)
-    |  GET /api/audit?domain=example.com
+Browser (guardian.html, vanilla JS)
+    |  3 parallel fetch() calls, Accept: application/dns-json
+    |    TXT  example.com
+    |    TXT  _dmarc.example.com
+    |    MX   example.com
     v
-Cloudflare Pages Function (functions/api/audit.js)
-    |  3 parallel DoH queries: TXT, _dmarc TXT, MX
+cloudflare-dns.com/dns-query (public DoH JSON API, CORS-enabled)
+    |
     v
-cloudflare-dns.com/dns-query  -->  JSON { score, spf, dmarc, mx }
+parseTxtRecords -> analyzeSpf / analyzeDmarc / analyzeMx -> calcScore -> renderResults
 ```
 
-`guardian.html` is a single self-contained file (inline CSS and vanilla JS). On submit it calls the Pages
-Function, which runs the three DNS lookups with `Promise.all` and scores the results. Higher score means more
-risk:
+`guardian.html` is a single self-contained file (inline CSS and vanilla JS). The domain never reaches a
+server operated by this project: the browser calls Cloudflare's public resolver directly, which serves the
+JSON DoH API with permissive CORS headers. Any static host works.
 
-| Check | Result | Points |
+The score starts at 100 and loses points per finding:
+
+| Check | Result | Points subtracted |
 |---|---|---|
-| SPF | missing / `+all` / `?all` / `~all` / no qualifier / `-all` | 40 / 35 / 20 / 15 / 15 / 5 |
-| DMARC | missing / `p=none` / no policy / `p=quarantine` / `p=reject` | 40 / 20 / 15 / 5 / 0 |
-| MX | missing / present | 10 / 0 |
+| SPF | `+all` / missing / `?all` / no `all` qualifier / `~all` / `-all` | 50 / 40 / 30 / 20 / 15 / 0 |
+| DMARC | missing / no `p=` tag or unknown policy / `p=none` / `p=quarantine` / `p=reject` | 35 / 20 / 15 / 5 / 0 |
+| MX | missing / present | 15 / 0 |
 
-The total is capped at 100. The page maps it to levels: 0-20 low, 21-50 moderate, 51-75 high, 76+ critical.
-The API returns permissive CORS headers so the endpoint can be called from other origins.
+The result is clamped to 0-100 and mapped to levels: 90+ low risk, 70-89 moderate, 50-69 high, below 50
+critical. If any of the three lookups fails, the page shows a DNS error instead of a partial score.
 
 ## Requirements
 
-- A Cloudflare account with Cloudflare Pages (Functions enabled by default).
-- No environment variables or API keys; only the public Cloudflare DoH resolver is used.
-- Optional for local testing: Node.js and `wrangler`.
+- Any static web host (Cloudflare Pages, GitHub Pages, nginx, a local file server).
+- A modern browser with `fetch` and ES2020 support; outbound HTTPS to `cloudflare-dns.com`.
+- No environment variables or API keys.
 
 ## Quick start
 
-1. Fork or clone the repository.
-2. In Cloudflare, go to **Workers & Pages** > **Create** > **Pages** > **Connect to Git** and select the repo.
-3. Build settings: framework preset **None**, build command empty, output directory `/`.
-4. After deployment, test the API:
+1. Clone the repository:
    ```bash
-   curl "https://<your-project>.pages.dev/api/audit?domain=example.com"
+   git clone https://github.com/cascodigital/the-guardian.git
+   cd the-guardian
    ```
+2. Serve the folder with any static server:
+   ```bash
+   python3 -m http.server 8080
+   ```
+3. Open `http://localhost:8080/guardian.html`, enter a domain such as `example.com` and click **Auditar Agora**.
 
-To run locally instead:
-
-```bash
-npx wrangler pages dev .
-# then open http://localhost:8788/guardian
-```
+To publish on Cloudflare Pages: **Workers & Pages** > **Create** > **Pages** > **Connect to Git**, framework
+preset **None**, build command empty, output directory `/`.
 
 ## Configuration
 
-No runtime configuration. The only tunable values are constants in the source:
+No runtime configuration. The only tunable values are constants in the inline script:
 
 | Variable / key | Required | Default | Description |
 |---|---|---|---|
-| `DOH` (`functions/api/audit.js`) | No | `https://cloudflare-dns.com/dns-query` | DNS-over-HTTPS endpoint (JSON API) |
-| `domain` query parameter | Yes | — | Domain to audit; scheme and path are stripped |
+| `DOH_ENDPOINT` | No | `https://cloudflare-dns.com/dns-query` | DoH resolver; must serve the JSON API (`application/dns-json`) with CORS |
+| `calcScore()` penalty tables | No | see table above | Points subtracted per SPF/DMARC/MX status |
+| `scoreLevel()` thresholds | No | `90` / `70` / `50` | Score boundaries between risk levels |
 
 ## Usage
 
-API response example:
+The audit can be reproduced from a shell with the same queries the page sends:
 
-```json
-{
-  "ok": true,
-  "domain": "example.com",
-  "score": 25,
-  "spf":   { "exists": true, "value": "v=spf1 -all", "score": 5, "status": "strict", "label": "..." },
-  "dmarc": { "exists": true, "value": "v=DMARC1; p=none", "score": 20, "status": "monitoring", "label": "..." },
-  "mx":    { "exists": true, "records": ["0 ."], "score": 0 }
-}
+```bash
+curl -s -H 'Accept: application/dns-json' 'https://cloudflare-dns.com/dns-query?name=example.com&type=TXT'
+curl -s -H 'Accept: application/dns-json' 'https://cloudflare-dns.com/dns-query?name=_dmarc.example.com&type=TXT'
+curl -s -H 'Accept: application/dns-json' 'https://cloudflare-dns.com/dns-query?name=example.com&type=MX'
 ```
-
-Errors return `{ "ok": false, "error": "..." }` with HTTP 400 (missing `domain`) or 500 (lookup failure).
-`label` and `error` strings are in Portuguese because the page displays them directly.
 
 ## Limitations
 
 - Checks are string-based: it does not validate SPF syntax, count DNS lookups (10-lookup limit) or follow
   `include:` chains.
-- Only the first SPF record is evaluated; multiple SPF records (itself an error) are not flagged.
+- Only the first SPF and DMARC records are evaluated; multiple SPF records (itself an error) are not flagged.
 - DKIM is not checked (selectors are not discoverable from DNS alone).
 - DMARC `sp=`, `pct=` and reporting tags (`rua`, `ruf`) are not evaluated.
-- No rate limiting on the public endpoint.
+- Relies on a third-party resolver; networks that block `cloudflare-dns.com` get a DNS error.
 - User-facing text is Portuguese only.
 
 ## License
