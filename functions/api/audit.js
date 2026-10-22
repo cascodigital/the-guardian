@@ -1,10 +1,13 @@
 /**
  * Cloudflare Pages Function - The Guardian
- * Endpoint GET /api/audit?domain=example.com
- * Audita SPF, DMARC e MX via DNS over HTTPS (Cloudflare DoH)
- * e retorna score de risco 0-100.
+ * Endpoint: GET /api/audit?domain=example.com
+ * Audits SPF, DMARC and MX via DNS over HTTPS (Cloudflare DoH)
+ * and returns a 0-100 risk score (higher = riskier).
  *
- * Autor: Andre Kittler / Casco Digital
+ * The `label` fields and error messages are shown verbatim on the
+ * Portuguese-language page (guardian.html), so they stay in pt-BR.
+ *
+ * Author: Casco Digital
  */
 
 const DOH = "https://cloudflare-dns.com/dns-query";
